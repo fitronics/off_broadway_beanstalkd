@@ -65,48 +65,16 @@ defmodule OffBroadwayBeanstalkd.Producer do
   By default the following information is added to the `metadata` field in the
   `%Message{}` struct:
 
-    * `message_id` - The message id received when the message was sent to the queue
-    * `receipt_handle` - The receipt handle
-    * `md5_of_body` - An MD5 digest of the message body
+    * `id` - The job id received when the message was sent to the queue
 
   You can access any of that information directly while processing the message:
 
       def handle_message(_, message, _) do
-        receipt = %{
-          id: message.metadata.message_id,
-          receipt_handle: message.metadata.receipt_handle
-        }
+        job_id message.metadata.id,
 
-        # Do something with the receipt
+        # Do something with the job_id
       end
 
-  If you want to retrieve `attributes` or `message_attributes`, you need to
-  configure the `:attributes_names` and `:message_attributes_names` options
-  accordingly, otherwise, attributes will not be attached to the response and
-  will not be available in the `metadata` field
-
-      producers: [
-        default: [
-          module: {OffBroadwayBeanstalkd.Producer,
-            queue_name: "my_queue",
-            # Define which attributes/message_attributes you want to be attached
-            attribute_names: [:approximate_receive_count],
-            message_attribute_names: ["SomeAttribute"],
-          }
-        ]
-      ]
-
-  and then in `handle_message`:
-
-      def handle_message(_, message, _) do
-        approximate_receive_count = message.metadata.attributes["approximate_receive_count"]
-        some_attribute = message.metadata.message_attributes["SomeAttribute"]
-
-        # Do something with the attributes
-      end
-
-  For more information on the `:attributes_names` and `:message_attributes_names`
-  options.
   """
 
   use GenStage
@@ -135,6 +103,7 @@ defmodule OffBroadwayBeanstalkd.Producer do
 
   @impl true
   def handle_demand(incoming_demand, %{demand: demand} = state) do
+    # IO.inspect({incoming_demand, demand}, label: "handle_demand")
     handle_receive_messages(%{state | demand: demand + incoming_demand})
   end
 
@@ -151,6 +120,7 @@ defmodule OffBroadwayBeanstalkd.Producer do
   defp handle_receive_messages(%{receive_timer: nil, demand: demand} = state) when demand > 0 do
     messages = receive_messages_from_beanstalkd(state, demand)
     new_demand = demand - length(messages)
+    # IO.inspect({messages, new_demand}, label: "handle_receive_messages")
 
     receive_timer =
       case {messages, new_demand} do

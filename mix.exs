@@ -22,7 +22,8 @@ defmodule OffBroadwayBeanstalkd.MixProject do
     [
       {:broadway, "~> 0.3.0"},
       {:beanstix, git: "https://github.com/nicksanders/beanstix.git"},
-      {:credo, "~> 1.1.0", only: :dev, runtime: false}
+      {:credo, "~> 1.1.0", only: :dev, runtime: false},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false}
     ]
   end
 

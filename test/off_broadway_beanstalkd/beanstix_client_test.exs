@@ -20,8 +20,10 @@ defmodule OffBroadwayBeanstalkd.BeanstixClientTest do
       assert message1.data == "Message 1"
       assert message2.data == "Message 2"
 
-      assert message1.acknowledger ==
-               {BeanstixClient, opts.ack_ref, %{id: message1.metadata.job_id}}
+      assert message1.acknowledger == {BeanstixClient, opts.ack_ref, %{id: message1.metadata.job_id}}
+
+      Beanstix.purge_tube(opts.conn, opts.tube)
+      Beanstix.quit(opts.conn)
     end
 
     test "add job_id to metadata", %{opts: base_opts} do
@@ -32,6 +34,9 @@ defmodule OffBroadwayBeanstalkd.BeanstixClientTest do
       [%{metadata: metadata} | _] = BeanstixClient.receive_messages(10, opts)
 
       assert metadata.job_id == job_id1
+
+      Beanstix.purge_tube(opts.conn, opts.tube)
+      Beanstix.quit(opts.conn)
     end
   end
 
@@ -57,25 +62,9 @@ defmodule OffBroadwayBeanstalkd.BeanstixClientTest do
         ],
         []
       )
+
+      Beanstix.purge_tube(opts.conn, opts.tube)
+      Beanstix.quit(opts.conn)
     end
-
-    #   test "request with custom :config options", %{opts: base_opts} do
-    #     config =
-    #       Keyword.merge(base_opts[:config],
-    #         scheme: "http://",
-    #         host: "localhost",
-    #         port: 9324
-    #       )
-
-    #     {:ok, opts} = Keyword.put(base_opts, :config, config) |> BeanstixClient.init()
-
-    #     ack_data = %{receipt: %{id: "1", receipt_handle: "abc"}}
-    #     message = %Message{acknowledger: {BeanstixClient, opts.ack_ref, ack_data}, data: nil}
-
-    #     BeanstixClient.ack(opts.ack_ref, [message], [])
-
-    #     assert_received {:http_request_called, %{url: url}}
-    #     assert url == "http://localhost:9324/"
-    #   end
   end
 end

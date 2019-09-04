@@ -1,6 +1,10 @@
-# OffBroadwayBeanstalkd
+# Off Broadway Beanstalkd
 
-**TODO: Add description**
+![Travis](https://travis-ci.org/nicksanders/off_broadway_beanstalkd.svg?branch=master)
+
+**A Broadway producer for beanstalkd**
+
+Warning: This is Alpha software and subject to breaking changes.
 
 ## Installation
 
