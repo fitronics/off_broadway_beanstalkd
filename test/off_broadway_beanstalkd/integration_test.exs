@@ -59,12 +59,12 @@ defmodule OffBroadwayBeanstalkd.OffBroadwayBeanstalkd.IntegrationTest do
       jobs = for i <- 21..30, do: {:put, "Failed Message #{i}"}
       Beanstix.pipeline(conn, jobs)
 
+      Process.sleep(100)
+
       for i <- 21..30 do
         msg = "Failed Message #{i}"
-        assert_receive {:message_handled, ^msg, _}
+        assert_received {:message_handled, ^msg, _}
       end
-
-      Process.sleep(100)
 
       {:ok, stats} = Beanstix.stats_tube(conn, tube)
       assert stats["current-jobs-delayed"] == 10
@@ -109,7 +109,7 @@ defmodule OffBroadwayBeanstalkd.OffBroadwayBeanstalkd.IntegrationTest do
       context: %{test_pid: self()},
       producers: [
         default: [
-          module: {OffBroadwayBeanstalkd.Producer, receive_interval: 10, tube: tube},
+          module: {OffBroadwayBeanstalkd.Producer, receive_interval: 10, tube: tube, requeue: :once},
           stages: 1
         ]
       ],

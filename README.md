@@ -2,7 +2,7 @@
 
 ![Travis](https://travis-ci.org/nicksanders/off_broadway_beanstalkd.svg?branch=master)
 
-**A Broadway producer for beanstalkd**
+**A beanstalkd connector for [Broadway](https://github.com/plataformatec/broadway).**
 
 Warning: This is Alpha software and subject to breaking changes.
 

@@ -9,11 +9,19 @@ defmodule OffBroadwayBeanstalkd.Producer do
 
   ## Options for `OffBroadwayBeanstalkd.BeanstixClient`
 
-    * `:host` - The host beanstalkd is running on, default is '127.0.0.1'
+    * `:host` - Optional. The host beanstalkd is running on, default is '127.0.0.1'
 
-    * `:port` - The port beanstalkd is running on, default is 11300
+    * `:port` - Optional. The port beanstalkd is running on, default is 11300
 
-    * `:tube` - The name of the tube.
+    * `:tube` - Optional. The name of the tube, default is "default"
+
+    * `:requeue` - Optional. Defines a strategy for requeuing failed messages.
+      Possible values are: `:always`,  `:never`, `:once` or can be an integer for the number of to requeue
+      eg. if requeue is 5 a message will be tried 6 times before being deleted
+      Default is `:always`.
+
+    * `:requeue_delay_min` - The minimum requeue delay in seconds (default: `10`)
+    * `:requeue_delay_max` - The maximum requeue delay in seconds (default: `60`)
 
   ## Producer Options
 
@@ -31,7 +39,7 @@ defmodule OffBroadwayBeanstalkd.Producer do
   ## Acknowledgments
 
   In case of successful processing, the message is deleted from the queue.
-  In case of failures, the message is released back to the ready queue.
+  In case of failures, the message is released back to the ready queue or deleted depanding on the requeue option.
 
   ### Batching
 
@@ -103,7 +111,6 @@ defmodule OffBroadwayBeanstalkd.Producer do
 
   @impl true
   def handle_demand(incoming_demand, %{demand: demand} = state) do
-    # IO.inspect({incoming_demand, demand}, label: "handle_demand")
     handle_receive_messages(%{state | demand: demand + incoming_demand})
   end
 
@@ -120,7 +127,6 @@ defmodule OffBroadwayBeanstalkd.Producer do
   defp handle_receive_messages(%{receive_timer: nil, demand: demand} = state) when demand > 0 do
     messages = receive_messages_from_beanstalkd(state, demand)
     new_demand = demand - length(messages)
-    # IO.inspect({messages, new_demand}, label: "handle_receive_messages")
 
     receive_timer =
       case {messages, new_demand} do

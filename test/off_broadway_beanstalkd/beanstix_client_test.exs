@@ -20,7 +20,7 @@ defmodule OffBroadwayBeanstalkd.BeanstixClientTest do
       assert message1.data == "Message 1"
       assert message2.data == "Message 2"
 
-      assert message1.acknowledger == {BeanstixClient, opts.ack_ref, %{id: message1.metadata.job_id}}
+      assert message1.acknowledger == {BeanstixClient, opts.ack_ref, %{job_id: message1.metadata.job_id}}
 
       Beanstix.purge_tube(opts.conn, opts.tube)
       Beanstix.quit(opts.conn)
@@ -51,14 +51,14 @@ defmodule OffBroadwayBeanstalkd.BeanstixClientTest do
       {:ok, opts} = BeanstixClient.init(base_opts)
       [{:ok, job_id1}, {:ok, job_id2}] = Beanstix.pipeline(opts.conn, [{:put, "Message 1"}, {:put, "Message 2"}])
 
-      ack_data_1 = %{id: job_id1}
-      ack_data_2 = %{id: job_id2}
+      metadata_1 = %{job_id: job_id1, requeue: :never}
+      metadata_2 = %{job_id: job_id2, requeue: :never}
 
       BeanstixClient.ack(
         opts.ack_ref,
         [
-          %Message{acknowledger: {BeanstixClient, opts.ack_ref, ack_data_1}, data: nil},
-          %Message{acknowledger: {BeanstixClient, opts.ack_ref, ack_data_2}, data: nil}
+          %Message{acknowledger: nil, data: nil, metadata: metadata_1},
+          %Message{acknowledger: nil, data: nil, metadata: metadata_2}
         ],
         []
       )

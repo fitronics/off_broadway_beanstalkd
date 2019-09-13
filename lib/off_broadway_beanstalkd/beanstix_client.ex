@@ -25,15 +25,26 @@ defmodule OffBroadwayBeanstalkd.BeanstixClient do
       {:ok, 1} = Beanstix.ignore(conn, "default")
     end
 
-    ack_ref = Broadway.TermStorage.put(%{conn: conn, tube: tube})
+    requeue = Keyword.get(opts, :requeue, :always)
+    requeue_delay_min = Keyword.get(opts, :requeue_delay_min, 10)
+    requeue_delay_max = Keyword.get(opts, :requeue_delay_max, 60)
 
-    {:ok, %{conn: conn, tube: tube, ack_ref: ack_ref}}
+    ack_ref =
+      Broadway.TermStorage.put(%{
+        conn: conn,
+        tube: tube,
+        requeue: requeue,
+        requeue_delay_min: requeue_delay_min,
+        requeue_delay_max: requeue_delay_max
+      })
+
+    {:ok, %{conn: conn, tube: tube, ack_ref: ack_ref, requeue: requeue}}
   end
 
   @impl true
   def receive_messages(demand, opts) do
     get_jobs(opts.conn, demand)
-    |> wrap_jobs_as_messages(opts.ack_ref)
+    |> wrap_jobs_as_messages(opts)
   end
 
   defp get_jobs(conn, demand) do
@@ -53,42 +64,75 @@ defmodule OffBroadwayBeanstalkd.BeanstixClient do
   @impl true
   def ack(ack_ref, successful, failed) do
     opts = Broadway.TermStorage.get!(ack_ref)
-    delete_successful_messages(opts.conn, successful)
-    release_failed_messages(opts.conn, failed)
+    delete_messages(opts.conn, successful)
+    process_failed_messages(opts.conn, failed, opts)
   end
 
-  defp delete_successful_messages(conn, messages) do
+  defp delete_messages(_, []), do: true
+
+  defp delete_messages(conn, messages) do
     cmds =
-      for %Message{acknowledger: {_, _, %{id: id}}} <- messages do
-        {:delete, id}
+      for %Message{metadata: metadata} <- messages do
+        {:delete, metadata.job_id}
       end
 
-    if length(cmds) > 0 do
-      Beanstix.pipeline(conn, cmds)
+    Beanstix.pipeline(conn, cmds)
+  end
+
+  # Release/Delete failed messages depending on requeue and how many times it has already been releases
+  defp process_failed_messages(_, [], _), do: true
+
+  defp process_failed_messages(conn, messages, opts) do
+    cmds =
+      for %Message{metadata: metadata} <- messages do
+        case metadata.requeue do
+          :never ->
+            {:delete, metadata.job_id}
+
+          _ ->
+            case Beanstix.stats_job(conn, metadata.job_id) do
+              {:ok, stats_job} when is_map(stats_job) ->
+                calculate_cmd_for_failed_message(metadata, opts, stats_job["releases"])
+
+              _ ->
+                nil
+            end
+        end
+      end
+      |> Enum.reject(fn x -> x == nil end)
+
+    Beanstix.pipeline(conn, cmds)
+  end
+
+  defp calculate_cmd_for_failed_message(metadata, opts, releases) do
+    delay = calculate_delay(opts, releases)
+
+    case {metadata.requeue, releases} do
+      {:once, 0} -> {:release, metadata.job_id, [delay: delay]}
+      {x, releases} when is_integer(x) and releases < x -> {:release, metadata.job_id, [delay: delay]}
+      _ -> {:delete, metadata.job_id}
     end
   end
 
-  # Release failed back to the queue with a delay of 30 seconds
-  defp release_failed_messages(conn, messages) do
-    cmds =
-      for %Message{acknowledger: {_, _, %{id: id}}} <- messages do
-        {:release, id, [delay: 30]}
-      end
+  defp calculate_delay(opts, releases) do
+    delay = round(:math.pow(2, releases) * opts.requeue_delay_min)
 
-    if length(cmds) > 0 do
-      Beanstix.pipeline(conn, cmds)
+    if delay > opts.requeue_delay_max do
+      opts.requeue_delay_max
+    else
+      delay
     end
   end
 
-  defp wrap_jobs_as_messages(jobs, ack_ref) do
+  defp wrap_jobs_as_messages(jobs, opts) do
     Enum.map(jobs, fn {job_id, data} ->
-      metadata = %{job_id: job_id}
-      acknowledger = build_acknowledger(job_id, ack_ref)
+      metadata = %{job_id: job_id, requeue: opts.requeue}
+      acknowledger = build_acknowledger(job_id, opts.ack_ref)
       %Message{data: data, metadata: metadata, acknowledger: acknowledger}
     end)
   end
 
   defp build_acknowledger(job_id, ack_ref) do
-    {__MODULE__, ack_ref, %{id: job_id}}
+    {__MODULE__, ack_ref, %{job_id: job_id}}
   end
 end
