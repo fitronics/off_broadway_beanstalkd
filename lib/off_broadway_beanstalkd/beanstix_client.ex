@@ -50,10 +50,11 @@ defmodule OffBroadwayBeanstalkd.BeanstixClient do
   defp get_jobs(conn, demand) do
     cmds = List.duplicate({:reserve_with_timeout, 0}, demand)
 
-    Beanstix.pipeline(conn, cmds)
+    Beanstix.pipeline(conn, cmds, 10000)
     |> Enum.reduce([], fn job, acc ->
       case job do
         {:ok, :timed_out} -> acc
+        {:ok, :deadline_soon} -> acc
         {:ok, data} -> [data | acc]
         _ -> acc
       end
