@@ -8,7 +8,9 @@ defmodule OffBroadwayBeanstalkd.MixProject do
       elixir: "~> 1.9",
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      description: description(),
+      package: package()
     ]
   end
 
@@ -20,9 +22,9 @@ defmodule OffBroadwayBeanstalkd.MixProject do
 
   defp deps do
     [
-      {:broadway, "~> 0.3.0"},
-      {:beanstix, git: "https://github.com/nicksanders/beanstix.git"},
-      {:credo, "~> 1.1.0", only: :dev, runtime: false},
+      {:broadway, "~> 0.6.0"},
+      {:beanstix, "~> 0.1.0"},
+      {:credo, "~> 1.4", only: :dev, runtime: false},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false}
     ]
   end
@@ -30,6 +32,17 @@ defmodule OffBroadwayBeanstalkd.MixProject do
   defp aliases do
     [
       lint: ["format --check-formatted", "credo --strict"]
+    ]
+  end
+
+  defp description() do
+    "A beanstalkd connector for Broadway."
+  end
+
+  defp package() do
+    [
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/fitronics/off_broadway_beanstalkd"}
     ]
   end
 end

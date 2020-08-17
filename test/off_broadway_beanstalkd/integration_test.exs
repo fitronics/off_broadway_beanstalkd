@@ -107,14 +107,12 @@ defmodule OffBroadwayBeanstalkd.OffBroadwayBeanstalkd.IntegrationTest do
     Broadway.start_link(Forwarder,
       name: new_unique_name(),
       context: %{test_pid: self()},
-      producers: [
-        default: [
-          module: {OffBroadwayBeanstalkd.Producer, receive_interval: 10, tube: tube, requeue: :once},
-          stages: 1
-        ]
+      producer: [
+        module: {OffBroadwayBeanstalkd.Producer, receive_interval: 10, tube: tube, requeue: :once},
+        concurrency: 1
       ],
       processors: [
-        default: [stages: 1]
+        default: [concurrency: 1]
       ]
     )
   end

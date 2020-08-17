@@ -49,16 +49,14 @@ defmodule OffBroadwayBeanstalkd.Producer do
 
       Broadway.start_link(MyBroadway,
         name: MyBroadway,
-        producers: [
-          default: [
-            module:
-              {OffBroadwayBeanstalkd.Producer,
-              host: "192.168.0.10",
-              port: 11300,
-              tube: "my_queue",
-              requeue: :once
-            stages: 5
-          ]
+        producer: [
+          module:
+            {OffBroadwayBeanstalkd.Producer,
+            host: "192.168.0.10",
+            port: 11300,
+            tube: "my_queue",
+            requeue: :once
+          concurrency: 5
         ],
         processors: [
           default: []
